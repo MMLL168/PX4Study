@@ -1,0 +1,5 @@
+menuconfig DRIVERS_IMU_INVENSENSE_MPU6050
+	bool "mpu6050"
+	default n
+	---help---
+		Enable support for InvenSense MPU6050 IMU via I2C
