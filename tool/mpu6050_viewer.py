@@ -204,6 +204,7 @@ class App(tk.Tk):
         self._blink           = False
         self._listener_up     = False
         self._last_listener_t = 0.0
+        self._poll_topic      = 'accel'   # 輪流讀 accel / gyro
         self._interval_var    = tk.StringVar(value="300")  # 輪詢間隔 ms
 
         self._build_ui()
@@ -540,11 +541,18 @@ class App(tk.Tk):
                     # 只有「裸 nsh>」才代表 listener 結束（排除 echo 行如 "nsh> > cmd"）
                     if ln.strip() == 'nsh>' and self._imu_on and self._listener_up:
                         self._listener_up = False
-                        try:
-                            interval = max(50, int(self._interval_var.get()))
-                        except ValueError:
-                            interval = 300
-                        self.after(interval, self._start_listener)
+                        if self._poll_topic == 'accel':
+                            # accel 讀完 → 立即讀 gyro
+                            self._poll_topic = 'gyro'
+                            self.after(50, self._start_listener)
+                        else:
+                            # gyro 讀完 → 等間隔後重新從 accel 開始
+                            self._poll_topic = 'accel'
+                            try:
+                                interval = max(50, int(self._interval_var.get()))
+                            except ValueError:
+                                interval = 300
+                            self.after(interval, self._start_listener)
         except queue.Empty:
             pass
 
@@ -581,6 +589,7 @@ class App(tk.Tk):
             self._log_add("[請先連線]\n"); return
         self._imu_on = True
         self._listener_up = False
+        self._poll_topic = 'accel'
         # 先停舊 instance，400ms 後再啟動
         self._send_cmd("mpu6050 stop")
         self.after(400, self._imu_start2)
@@ -595,15 +604,19 @@ class App(tk.Tk):
     def _start_listener(self):
         if not (self._imu_on and self._ser and self._ser.is_open):
             return
-        if time.monotonic() - self._last_listener_t < 0.1:  # 防雙擊保護
+        if time.monotonic() - self._last_listener_t < 0.1:
             return
         self._last_listener_t = time.monotonic()
         self._listener_up = True
-        self._send_cmd("listener sensor_accel -n 1")  # 單次讀一筆，讀完回 nsh> 再排下一次
+        if self._poll_topic == 'accel':
+            self._send_cmd("listener sensor_accel -n 1")
+        else:
+            self._send_cmd("listener sensor_gyro -n 1")
 
     def _stop_imu(self):
         self._imu_on = False
         self._listener_up = False
+        self._poll_topic = 'accel'
         if self._ser and self._ser.is_open:
             try:
                 self._ser.write(b'\x03')   # Ctrl+C 中斷 listener
