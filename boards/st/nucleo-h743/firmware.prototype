@@ -1,0 +1,13 @@
+{
+    "board_id": 0,
+    "magic": "PX4FWv1",
+    "description": "Firmware for the ST Nucleo-H743ZI2 board",
+    "image": "",
+    "build_time": 0,
+    "summary": "NucleoH743",
+    "version": "0.1",
+    "image_size": 0,
+    "image_maxsize": 2097152,
+    "git_identity": "",
+    "board_revision": 0
+}

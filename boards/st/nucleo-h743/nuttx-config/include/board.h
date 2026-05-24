@@ -1,0 +1,193 @@
+/****************************************************************************
+ * boards/st/nucleo-h743/nuttx-config/include/board.h
+ *
+ *   ST Nucleo-H743ZI2 board configuration.
+ *   CPU: STM32H743ZI @ 480 MHz, HSE 8 MHz crystal
+ *   Console: USART3 (PD8/PD9) via ST-Link Virtual COM Port
+ *
+ ****************************************************************************/
+
+#ifndef __NUTTX_CONFIG_NUCLEO_H743_INCLUDE_BOARD_H
+#define __NUTTX_CONFIG_NUCLEO_H743_INCLUDE_BOARD_H
+
+#include "board_dma_map.h"
+
+#include <nuttx/config.h>
+
+#ifndef __ASSEMBLY__
+# include <stdint.h>
+#endif
+
+#include "stm32_rcc.h"
+#include "stm32_sdmmc.h"
+
+/************************************************************************************
+ * Pre-processor Definitions
+ ************************************************************************************/
+
+/* Clocking *************************************************************************/
+/* Nucleo-H743ZI2 provides an 8 MHz crystal (X3) for HSE.
+ *
+ * PLL1 configuration (480 MHz SYSCLK):
+ *   HSE = 8 MHz
+ *   PLL1M = 1  -> ref = 8 MHz
+ *   PLL1N = 120 -> VCO = 960 MHz
+ *   PLL1P = 2  -> SYSCLK = 480 MHz
+ *   PLL1Q = 4  -> 240 MHz (USB/FDCAN needs PLL3Q for 48 MHz)
+ *   PLL1R = 8  -> 120 MHz
+ */
+
+#define STM32_BOARD_XTAL        8000000ul
+
+#define STM32_HSI_FREQUENCY     16000000ul
+#define STM32_LSI_FREQUENCY     32000
+#define STM32_HSE_FREQUENCY     STM32_BOARD_XTAL
+#define STM32_LSE_FREQUENCY     32768
+
+#define STM32_BOARD_USEHSE
+
+#define STM32_PLLCFG_PLLSRC      RCC_PLLCKSELR_PLLSRC_HSE
+
+#define STM32_PLLCFG_PLL1CFG    (RCC_PLLCFGR_PLL1VCOSEL_WIDE | \
+				 RCC_PLLCFGR_PLL1RGE_4_8_MHZ | \
+				 RCC_PLLCFGR_DIVP1EN | \
+				 RCC_PLLCFGR_DIVQ1EN | \
+				 RCC_PLLCFGR_DIVR1EN)
+#define STM32_PLLCFG_PLL1M       RCC_PLLCKSELR_DIVM1(1)
+#define STM32_PLLCFG_PLL1N       RCC_PLL1DIVR_N1(120)
+#define STM32_PLLCFG_PLL1P       RCC_PLL1DIVR_P1(2)
+#define STM32_PLLCFG_PLL1Q       RCC_PLL1DIVR_Q1(4)
+#define STM32_PLLCFG_PLL1R       RCC_PLL1DIVR_R1(8)
+
+#define STM32_VCO1_FREQUENCY     ((STM32_HSE_FREQUENCY / 1) * 120)
+#define STM32_PLL1P_FREQUENCY    (STM32_VCO1_FREQUENCY / 2)
+#define STM32_PLL1Q_FREQUENCY    (STM32_VCO1_FREQUENCY / 4)
+#define STM32_PLL1R_FREQUENCY    (STM32_VCO1_FREQUENCY / 8)
+
+/* PLL2 */
+#define STM32_PLLCFG_PLL2CFG     (RCC_PLLCFGR_PLL2VCOSEL_WIDE | \
+				  RCC_PLLCFGR_PLL2RGE_4_8_MHZ | \
+				  RCC_PLLCFGR_DIVP2EN | \
+				  RCC_PLLCFGR_DIVQ2EN | \
+				  RCC_PLLCFGR_DIVR2EN)
+#define STM32_PLLCFG_PLL2M       RCC_PLLCKSELR_DIVM2(2)
+#define STM32_PLLCFG_PLL2N       RCC_PLL2DIVR_N2(48)
+#define STM32_PLLCFG_PLL2P       RCC_PLL2DIVR_P2(2)
+#define STM32_PLLCFG_PLL2Q       RCC_PLL2DIVR_Q2(2)
+#define STM32_PLLCFG_PLL2R       RCC_PLL2DIVR_R2(2)
+
+#define STM32_VCO2_FREQUENCY     ((STM32_HSE_FREQUENCY / 2) * 48)
+#define STM32_PLL2P_FREQUENCY    (STM32_VCO2_FREQUENCY / 2)
+#define STM32_PLL2Q_FREQUENCY    (STM32_VCO2_FREQUENCY / 2)
+#define STM32_PLL2R_FREQUENCY    (STM32_VCO2_FREQUENCY / 2)
+
+/* PLL3 */
+#define STM32_PLLCFG_PLL3CFG    (RCC_PLLCFGR_PLL3VCOSEL_WIDE | \
+				 RCC_PLLCFGR_PLL3RGE_4_8_MHZ | \
+				 RCC_PLLCFGR_DIVQ3EN)
+#define STM32_PLLCFG_PLL3M      RCC_PLLCKSELR_DIVM3(2)
+#define STM32_PLLCFG_PLL3N      RCC_PLL3DIVR_N3(48)
+#define STM32_PLLCFG_PLL3P      RCC_PLL3DIVR_P3(2)
+#define STM32_PLLCFG_PLL3Q      RCC_PLL3DIVR_Q3(4)
+#define STM32_PLLCFG_PLL3R      RCC_PLL3DIVR_R3(2)
+
+#define STM32_VCO3_FREQUENCY    ((STM32_HSE_FREQUENCY / 2) * 48)
+#define STM32_PLL3P_FREQUENCY   (STM32_VCO3_FREQUENCY / 2)
+#define STM32_PLL3Q_FREQUENCY   (STM32_VCO3_FREQUENCY / 4)
+#define STM32_PLL3R_FREQUENCY   (STM32_VCO3_FREQUENCY / 2)
+
+/* SYSCLK = PLL1P = 480 MHz, CPUCLK = SYSCLK / 1 = 480 MHz */
+#define STM32_RCC_D1CFGR_D1CPRE  (RCC_D1CFGR_D1CPRE_SYSCLK)
+#define STM32_SYSCLK_FREQUENCY   (STM32_PLL1P_FREQUENCY)
+#define STM32_CPUCLK_FREQUENCY   (STM32_SYSCLK_FREQUENCY / 1)
+
+/* AHB clock (HCLK) = SYSCLK/2 = 240 MHz */
+#define STM32_RCC_D1CFGR_HPRE   RCC_D1CFGR_HPRE_SYSCLKd2
+#define STM32_ACLK_FREQUENCY    (STM32_CPUCLK_FREQUENCY / 2)
+#define STM32_HCLK_FREQUENCY    (STM32_CPUCLK_FREQUENCY / 2)
+#define STM32_BOARD_HCLK        STM32_HCLK_FREQUENCY
+
+/* APB1 clock (PCLK1) = HCLK/2 = 120 MHz */
+#define STM32_RCC_D2CFGR_D2PPRE1  RCC_D2CFGR_D2PPRE1_HCLKd2
+#define STM32_PCLK1_FREQUENCY     (STM32_HCLK_FREQUENCY/2)
+
+/* APB2 clock (PCLK2) = HCLK/2 = 120 MHz */
+#define STM32_RCC_D2CFGR_D2PPRE2  RCC_D2CFGR_D2PPRE2_HCLKd2
+#define STM32_PCLK2_FREQUENCY     (STM32_HCLK_FREQUENCY/2)
+
+/* APB3 clock (PCLK3) = HCLK/2 = 120 MHz */
+#define STM32_RCC_D1CFGR_D1PPRE   RCC_D1CFGR_D1PPRE_HCLKd2
+#define STM32_PCLK3_FREQUENCY     (STM32_HCLK_FREQUENCY/2)
+
+/* APB4 clock (PCLK4) = HCLK/2 = 120 MHz */
+#define STM32_RCC_D3CFGR_D3PPRE   RCC_D3CFGR_D3PPRE_HCLKd2
+#define STM32_PCLK4_FREQUENCY     (STM32_HCLK_FREQUENCY/2)
+
+/* Timer clock frequencies (timers on APB1/APB2 run at 2x PCLK) */
+#define STM32_APB1_TIM2_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM3_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM4_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM5_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM6_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM7_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM12_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM13_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM14_CLKIN  (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB2_TIM1_CLKIN   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_APB2_TIM8_CLKIN   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_APB2_TIM15_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_APB2_TIM16_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+#define STM32_APB2_TIM17_CLKIN  (2*STM32_PCLK2_FREQUENCY)
+
+/* Kernel Clock Configuration */
+#define STM32_RCC_D2CCIP2R_I2C123SRC RCC_D2CCIP2R_I2C123SEL_HSI
+#define STM32_RCC_D3CCIPR_I2C4SRC    RCC_D3CCIPR_I2C4SEL_HSI
+#define STM32_RCC_D2CCIP1R_SPI123SRC RCC_D2CCIP1R_SPI123SEL_PLL2
+#define STM32_RCC_D2CCIP1R_SPI45SRC  RCC_D2CCIP1R_SPI45SEL_PLL2
+#define STM32_RCC_D3CCIPR_SPI6SRC    RCC_D3CCIPR_SPI6SEL_PLL2
+#define STM32_RCC_D2CCIP2R_USBSRC    RCC_D2CCIP2R_USBSEL_PLL3
+#define STM32_RCC_D3CCIPR_ADCSRC     RCC_D3CCIPR_ADCSEL_PLL2
+#define STM32_RCC_D2CCIP1R_FDCANSEL  RCC_D2CCIP1R_FDCANSEL_HSE
+#define STM32_FDCANCLK               STM32_HSE_FREQUENCY
+
+/* FLASH wait states (VOS1, ACLK=240 MHz -> 2 wait states) */
+#define BOARD_FLASH_WAITSTATES 2
+
+/* LED definitions ******************************************************************/
+/* Nucleo-H743ZI2 user LEDs (active HIGH):
+ *   LD1 (green):  PB0
+ *   LD2 (yellow): PE1
+ *   LD3 (red):    PB14
+ */
+
+#define BOARD_LED1        0
+#define BOARD_LED2        1
+#define BOARD_NLEDS       2
+
+#define BOARD_LED_GREEN   BOARD_LED1
+#define BOARD_LED_YELLOW  BOARD_LED2
+
+#define BOARD_LED1_BIT    (1 << BOARD_LED1)
+#define BOARD_LED2_BIT    (1 << BOARD_LED2)
+
+#define LED_STARTED        0
+#define LED_HEAPALLOCATE   1
+#define LED_IRQSENABLED    2
+#define LED_STACKCREATED   3
+#define LED_INIRQ          4
+#define LED_SIGNAL         5
+#define LED_ASSERTION      6
+#define LED_PANIC          7
+#define LED_IDLE           8
+
+/* Alternate function pin selections ************************************************/
+
+/* USART3 -> ST-Link Virtual COM Port (PD8=TX, PD9=RX, AF7) */
+#define GPIO_USART3_RX   GPIO_USART3_RX_3   /* PD9 */
+#define GPIO_USART3_TX   GPIO_USART3_TX_3   /* PD8 */
+
+/* I2C1 -> MPU6050 (PB8=SCL, PB9=SDA, AF4) */
+#define GPIO_I2C1_SCL    GPIO_I2C1_SCL_2    /* PB8 */
+#define GPIO_I2C1_SDA    GPIO_I2C1_SDA_2    /* PB9 */
+
+#endif /* __NUTTX_CONFIG_NUCLEO_H743_INCLUDE_BOARD_H */
