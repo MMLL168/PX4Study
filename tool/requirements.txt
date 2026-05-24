@@ -1,0 +1,7 @@
+# tkinter 版 (Windows)
+pyserial>=3.5
+Pillow>=9.0
+
+# web 版 (Docker 或 Windows)
+flask>=2.3
+flask-socketio>=5.3
