@@ -4,6 +4,50 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "nucleo-h743: wait-openocd",
+            "type": "shell",
+            "command": "bash boards/st/nucleo-h743/wait_openocd.sh",
+            "dependsOn": ["nucleo-h743: build"],
+            "dependsOrder": "sequence",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "echo": false,
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": [],
+            "isBackground": false
+        },
+        {
+            "label": "nucleo-h743: build",
+            "type": "shell",
+            "command": "make st_nucleo-h743_default",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "/usr/lib/ccache:/opt/gcc/bin:/home/user/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": {
+                "base": "$gcc",
+                "fileLocation": ["relative", "${workspaceFolder}"]
+            }
+        },
+        {
             "label": "build",
             "type": "shell",
             "command": "/bin/bash",

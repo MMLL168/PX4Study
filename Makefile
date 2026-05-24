@@ -165,7 +165,7 @@ endif
 # Prefer the interpreter from an active Python virtual environment.
 # Otherwise leave PYTHON_EXECUTABLE unset and let CMake resolve Python.
 ifneq ($(strip $(VIRTUAL_ENV)),)
-	PYTHON_EXECUTABLE ?= $(VIRTUAL_ENV)/bin/python
+	PYTHON_EXECUTABLE ?= $(VIRTUAL_ENV)/bin/python3
 endif
 
 # Pick up specific Python path if set
