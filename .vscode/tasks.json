@@ -24,9 +24,23 @@
             "isBackground": false
         },
         {
+            "label": "nucleo-h743: clean-romfs-stamps",
+            "type": "shell",
+            "command": "rm -f build/st_nucleo-h743_default/ROMFS/rc.board_sensors.stamp build/st_nucleo-h743_default/ROMFS/rc.board_mavlink.stamp build/st_nucleo-h743_default/etc/init.d/rc.board_sensors build/st_nucleo-h743_default/etc/init.d/rc.board_mavlink",
+            "options": { "cwd": "${workspaceFolder}" },
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "nucleo-h743: build",
             "type": "shell",
             "command": "make st_nucleo-h743_default",
+            "dependsOn": ["nucleo-h743: clean-romfs-stamps"],
+            "dependsOrder": "sequence",
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": {

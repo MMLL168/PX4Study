@@ -2,6 +2,27 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "openocd-win (@PX4_BOARD@)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "external",
+            "gdbTarget": "host.docker.internal:3333",
+            "gdbPath": "/home/user/.local/bin/arm-none-eabi-gdb-wrapper.sh",
+            "executable": "${workspaceFolder}/build/@PX4_BOARD@_default/@PX4_BOARD@_default.elf",
+            "preLaunchTask": "nucleo-h743: wait-openocd",
+            "preLaunchCommands": [
+                "set mem inaccessible-by-default off",
+                "set print pretty",
+                "monitor reset_config srst_only srst_nogate",
+                "monitor reset halt"
+            ],
+            "postDebugCommands": [
+                "monitor reset run"
+            ],
+            "svdFile": "",
+            "showDevDebugOutput": "none"
+        },
+        {
             "name": "jlink (@PX4_BOARD@)",
             "gdbPath": "@CMAKE_GDB@",
             "device": "@DEBUG_DEVICE@",
