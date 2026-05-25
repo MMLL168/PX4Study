@@ -190,4 +190,8 @@
 #define GPIO_I2C1_SCL    GPIO_I2C1_SCL_2    /* PB8 */
 #define GPIO_I2C1_SDA    GPIO_I2C1_SDA_2    /* PB9 */
 
+/* UART7 -> TELEM1 / SiK Radio (PE8=TX, PE7=RX, AF7) */
+#define GPIO_UART7_RX    GPIO_UART7_RX_3    /* PE7 AF7 */
+#define GPIO_UART7_TX    GPIO_UART7_TX_3    /* PE8 AF7 */
+
 #endif /* __NUTTX_CONFIG_NUCLEO_H743_INCLUDE_BOARD_H */

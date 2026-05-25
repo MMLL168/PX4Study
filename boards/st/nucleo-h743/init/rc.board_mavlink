@@ -1,0 +1,9 @@
+#!/bin/sh
+# Nucleo-H743ZI2 - TELEM1 MAVLink startup
+# UART7: PE8(TX)/PE7(RX), /dev/ttyS1, 57600 baud
+# SiK Radio Air Unit connected here -> QGroundControl via SiK Ground Unit
+
+mavlink start -d /dev/ttyS1 -b 57600 -m onboard -r 10000
+mavlink stream -d /dev/ttyS1 -s ATTITUDE -r 10
+mavlink stream -d /dev/ttyS1 -s SCALED_IMU -r 10
+mavlink stream -d /dev/ttyS1 -s SCALED_IMU2 -r 10

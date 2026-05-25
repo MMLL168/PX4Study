@@ -1,0 +1,23 @@
+#!/bin/sh
+# Nucleo-H743ZI2 - board sensor initialisation
+#
+# IMU: InvenSense MPU-6050 (accel + gyro only)
+#   Bus:     I2C1  (PB8=SCL, PB9=SDA)
+#   Address: 0x68  (AD0 tied LOW)
+#   Mount:   external, default orientation (-X flag)
+#
+# Attitude estimator: attitude_estimator_q  (quaternion complementary filter)
+#   Enabled via ATT_EN=1.  Does NOT require GPS or magnetometer.
+#
+# EKF2 is disabled because it requires GPS for initialisation.
+#
+# SYS_HAS_MAG=0: this board carries no magnetometer.
+#   attitude_estimator_q uses this flag to bypass mag fusion and
+#   supply a synthetic mag vector so it can initialise without one.
+#   Consequence: yaw is initialised to 0 at boot and will drift freely.
+
+mpu6050 start -X -b 1 -a 0x68
+
+param set ATT_EN      1   # use attitude_estimator_q
+param set EKF2_EN     0   # disable EKF2 (needs GPS)
+param set SYS_HAS_MAG 0   # no magnetometer, bypass mag fusion
