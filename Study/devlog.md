@@ -7,6 +7,121 @@
 
 ---
 
+## [2026-05-25 21:00] F5 除錯流程加入 ROMFS stamp 清除，確保每次燒錄 init script 為最新版
+
+**問題**：
+按 F5 重新燒錄後，`boards/st/nucleo-h743/init/rc.board_sensors` 改動未反映在韌體中。
+檢查發現 `build/st_nucleo-h743_default/etc/init.d/rc.board_sensors` 為 0 bytes（空檔）。
+
+**原因**：
+PX4 的 `ROMFS/CMakeLists.txt` 使用 CMake `copy_if_different` + stamp 機制複製 board init script。
+若在一次 build 之後才修改 source 檔，stamp 仍舊存在，CMake 認為目標已是最新，
+不會重新複製，導致 ROMFS 中殘留舊版（甚至空檔）。
+stamp 位置：`build/st_nucleo-h743_default/ROMFS/rc.board_*.stamp`。
+
+**處理方式**：
+新增 VS Code task `"nucleo-h743: clean-romfs-stamps"`，於每次 build 前自動刪除
+`rc.board_sensors.stamp`、`rc.board_mavlink.stamp` 及其對應目標檔。
+`"nucleo-h743: build"` 改為 `dependsOn: ["nucleo-h743: clean-romfs-stamps"]`（sequence）。
+F5 執行順序：clean-romfs-stamps → build → wait-openocd → GDB flash。
+
+---
+
+## [2026-05-25 20:00] GUI 與韌體標示清理（ATTITUDE 來源標籤、IMU 單位、log 去噪）
+
+**問題**：
+- `MAVLink Monitor` 面板的 ATTITUDE 區塊標題顯示 `(EKF)`，但實際使用的是
+  `attitude_estimator_q`（四元數互補濾波），與 EKF2 無關，標示誤導。
+- `SCALED IMU` 數值缺少單位，使用者無法判斷量綱。
+- MAVLink log 每秒寫入 HEARTBEAT，快速洗版，真正的狀態變化反而難以察覺。
+- `rc.board_sensors` 的三個 `param set` 缺乏說明，難以理解硬體限制原因。
+
+**原因**：
+- `attitude_estimator_q` 是 PX4 的四元數互補濾波器（`ATT_EN=1` 啟用），
+  EKF2 是另一套估計器（`EKF2_EN`），兩者不同，標籤貼錯。
+- 原始 GUI 設計時 SCALED_IMU 欄位只留數值，未配置單位 label。
+- HEARTBEAT 每秒發送一次，原邏輯不分狀態每次都寫 log，造成資訊雜訊。
+
+**處理方式**：
+
+`tool/mpu6050_viewer.py`：
+1. 標題 `ATTITUDE (EKF)` → `ATTITUDE (Q estimator)`，正確反映 attitude_estimator_q。
+2. Yaw 標籤改為 `Yaw *`，面板底部加說明：「從 0° 開機，無磁力計會漂移」。
+3. SCALED IMU 各欄位加單位：Ax/Ay/Az 顯示 `m/s²`，Gx/Gy/Gz 顯示 `r/s`。
+4. HEARTBEAT log 改為只在 `armed` 或 `mode` 狀態變化時才寫入。
+
+`boards/st/nucleo-h743/init/rc.board_sensors`：
+- 加上完整的區塊說明，解釋 I2C 接線、為何關 EKF2、`SYS_HAS_MAG=0` 的影響；
+  各 `param set` 行尾加上單行用途注釋。
+
+---
+
+## [2026-05-25 19:00] attitude_estimator_q 從不發布 vehicle_attitude（無磁力計初始化失敗）
+
+**問題**：SCALED_IMU 數值正常，但 MAVLink ATTITUDE 訊息沒有資料；
+NSH `listener vehicle_attitude` 顯示 `never published`。
+
+**原因**：`attitude_estimator_q::init_attitude_q()` 使用磁力計向量 `_mag`
+與加速度向量 cross-product 建構初始旋轉矩陣。板子無磁力計，`_mag = (0,0,0)`，
+叉積結果為零向量，正規化後產生 NaN，四元數長度檢查失敗（`length > 0.95f`），
+`_initialized` 永遠 `false`，估計器從不進入主迴圈，`vehicle_attitude` 從不發布。
+
+PX4 已有正式機制處理此情況：當 `SYS_HAS_MAG=0` 時，
+`update_parameters()` 會令 `ATT_W_MAG=0.0`，並自動注入合成向量
+`_mag=(1,0,0)` 以使初始化通過。
+
+**處理方式**：
+在 `boards/st/nucleo-h743/init/rc.board_sensors` 加入：
+```sh
+param set SYS_HAS_MAG 0   # no magnetometer → bypass mag fusion
+```
+後果：Yaw 開機歸零（北向未知），但 Roll/Pitch 由加速度計+陀螺儀正常估計，
+ATTITUDE MAVLink 訊息恢復正常發布，人工地平線和 Roll/Pitch 數值顯示正確。
+
+---
+
+## [2026-05-25 18:00] /dev/ttyS1 不存在（NuttX 編譯快取未重新編譯 stm32_serial.c）
+
+**問題**：`defconfig` 加入 `CONFIG_STM32H7_UART7=y` 並重建後，
+NSH `ls /dev` 仍只有 `ttyS0`，沒有 `ttyS1`，MAVLink 無法啟動在 UART7。
+
+**原因**：
+NuttX 採用 in-tree make build，`stm32_serial.c` 的物件檔 (`stm32_serial.o`) 和靜態函式庫
+(`libarch.a`) 都存在於 NuttX 原始碼目錄
+（`platforms/nuttx/NuttX/nuttx/arch/arm/src/`）。
+
+NuttX make 比較 `stm32_serial.o`（2026-05-24 23:26）vs `stm32_serial.c`
+（2026-02-15，submodule checkout 時間），.o 較新故判定不需重編。
+但 `config.h` 於 2026-05-25 04:18 更新並加入 `CONFIG_STM32H7_UART7 1`，
+由於該 board 沒有 `.depend` 檔案，make 不追蹤 header 相依性，
+錯過了 `config.h` 變更觸發的重新編譯。
+結果 `g_uart7priv` 從未被編譯進 `libarch.a`，`arm_serialinit()` 的
+`g_uart_devs[6]` 為 NULL，ttyS1 從未被 `uart_register()` 登錄。
+
+確認方式：
+```bash
+arm-none-eabi-nm build/.../st_nucleo-h743_default.elf | grep uart7
+# 若無輸出 → UART7 code 未編入
+```
+
+**處理方式**：
+手動刪除過時的物件檔和靜態函式庫，強制 make 重新編譯：
+```bash
+rm platforms/nuttx/NuttX/nuttx/arch/arm/src/stm32_serial.o
+rm platforms/nuttx/NuttX/nuttx/arch/arm/src/libarch.a
+rm build/st_nucleo-h743_default/NuttX/nuttx/arch/arm/src/libarch.a
+make st_nucleo-h743_default -j$(nproc)
+```
+重建後 `g_uart7priv` 進入 ELF，燒錄後 `ttyS1` 正常出現，
+`mavlink start -d /dev/ttyS1` 可正常啟動。
+
+**教訓**：NuttX in-tree build 的快取問題——修改 `defconfig` 後若只執行
+`make st_nucleo-h743_default`，make 不一定會重編所有受影響的 NuttX 原始檔。
+凡是動過 NuttX 硬體驅動設定（增減 UART、SPI、I2C 等）之後，
+應手動確認對應的 `.o` 和 `libarch.a` 已被刪除再重建。
+
+---
+
 ## [2026-05-25 11:00] OpenOCD tcl_port 6666 無法綁定導致退出修復
 
 **問題**：F5 觸發 Relay 後 wait_openocd.sh 20 秒 timeout，OpenOCD 未在 port 3333 就緒。

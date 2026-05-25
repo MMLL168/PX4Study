@@ -351,3 +351,156 @@ nsh> mpu6050 stop                  # 停止驅動
 - **常見坑：** 把 HRT 計時器與 PWM 輸出計時器搞混。
   PWM 用 `timer_config.cpp` 設定（如 TIM1），HRT 用另一顆獨立的計時器。
   在 Nucleo-H743 上：TIM1 給 PWM，TIM8 給 HRT（與 CubeOrange 相同）。
+
+## 12. NuttX UART 驅動啟動流程與 board.h GPIO 定義
+
+### 概念說明
+NuttX 要讓一個 UART 出現在 `/dev/ttyS?`，需要三個層面同時具備：
+
+| 層面 | 位置 | 說明 |
+|------|------|------|
+| defconfig | `nuttx-config/nsh/defconfig` | `CONFIG_STM32H7_UART7=y` 啟用硬體驅動 |
+| GPIO 腳位 | `nuttx-config/include/board.h` | `GPIO_UART7_TX / GPIO_UART7_RX` 指定實際腳位 |
+| 序列裝置 | `stm32_serial.c` 自動 | 由 `g_uart_devs[]` 陣列決定 ttyS 編號 |
+
+缺任何一層，裝置都不會出現。
+
+### GPIO 腳位定義位置
+NuttX 在 `arch/arm/src/stm32h7/hardware/stm32h7x3xx_pinmap.h` 預定義所有可能的腳位別名，例如：
+```c
+#define GPIO_UART7_TX_3  (GPIO_ALT|GPIO_AF7|GPIO_PUSHPULL|GPIO_PULLUP|GPIO_PORTE|GPIO_PIN8)
+#define GPIO_UART7_RX_3  (GPIO_ALT|GPIO_AF7|GPIO_PULLUP|GPIO_PORTE|GPIO_PIN7)
+```
+在 `board.h` 中選用：
+```c
+#define GPIO_UART7_TX  GPIO_UART7_TX_3   /* PE8 AF7 */
+#define GPIO_UART7_RX  GPIO_UART7_RX_3   /* PE7 AF7 */
+```
+**若不在 `board.h` 定義，`stm32_serial.c` 的 `g_uart7priv` 結構體沒有腳位可用，裝置不被登錄。**
+
+### ttyS 編號規則（DISABLE_REORDERING）
+defconfig 有 `CONFIG_STM32H7_SERIAL_DISABLE_REORDERING=y` 時，
+`arm_serialinit()` 依 peripheral 順序依序登錄，跳過未啟用的：
+```
+USART1(idx 0) → 未啟用
+USART2(idx 1) → 未啟用
+USART3(idx 2) → 啟用 → ttyS0（console）
+UART4 (idx 3) → 未啟用
+UART5 (idx 4) → 未啟用
+USART6(idx 5) → 未啟用
+UART7 (idx 6) → 啟用 → ttyS1（TELEM1/SiK）
+```
+
+### STM32H7_NUART 的保護機制
+`stm32_uart.h` 有：
+```c
+#if STM32H7_NUART < 3
+#  undef CONFIG_STM32H7_UART7   // 晶片 UART 數量不足就強制關閉
+#endif
+```
+STM32H743ZI 的 `STM32H7_NUART = 4`（UART4/5/7/8），所以 UART7 不會被關閉。
+
+---
+
+## 13. NuttX in-tree Build 快取機制與陷阱
+
+### 概念說明
+PX4 使用 NuttX 的 **in-tree make build**：
+- 原始碼與編譯輸出**共用同一個目錄**（`platforms/nuttx/NuttX/nuttx/`）
+- 編譯後的 `.o` 留在原始碼目錄，`libarch.a` 等靜態函式庫也在原始碼樹中
+- 靜態函式庫最後被複製到 `build/st_nucleo-h743_default/NuttX/nuttx/` 供 PX4 CMake 鏈結
+
+### 快取不更新的根因
+make 的時間戳記比較邏輯：
+```
+stm32_serial.o 是否需要重建？
+  → 比較 stm32_serial.c（submodule checkout 日期，很舊）
+  → 與 stm32_serial.o（上次編譯日期，較新）
+  → .o 比 .c 新 → 跳過重編 ✗
+```
+問題：**make 沒有 `.depend` 檔案，不追蹤 `#include <nuttx/config.h>` 的相依性。**
+當 `config.h` 因 defconfig 更新而改變時，make 不知道 `stm32_serial.c` 需要重編。
+
+### 確認快取是否過時的方法
+```bash
+# 看 ELF 裡有沒有 UART7 的符號
+arm-none-eabi-nm build/st_nucleo-h743_default/st_nucleo-h743_default.elf | grep uart7
+# 若無輸出 → UART7 code 未編入 → 快取問題
+```
+
+### 強制重新編譯的正確做法
+修改 NuttX 硬體驅動設定（UART/SPI/I2C 等）後，手動刪除過時的物件：
+```bash
+rm platforms/nuttx/NuttX/nuttx/arch/arm/src/stm32_serial.o
+rm platforms/nuttx/NuttX/nuttx/arch/arm/src/libarch.a
+rm build/st_nucleo-h743_default/NuttX/nuttx/arch/arm/src/libarch.a
+make st_nucleo-h743_default -j$(nproc)
+```
+
+---
+
+## 14. PX4 MAVLink 串流架構（UART + SiK Radio）
+
+### SiK Radio 是什麼
+SiK（Serial interface Kit）是開源的無線遙測模組韌體，透過 FHSS（跳頻展頻）提供透明串列橋接：
+```
+STM32 UART7 ──serial──► SiK Air Unit ──RF 915MHz──► SiK Ground Unit ──USB──► PC
+```
+對 PX4 和 QGroundControl 來說，兩端就是一條普通的 57600 baud 串列線。
+
+### MAVLink 啟動流程（rc.board_mavlink）
+```sh
+mavlink start -d /dev/ttyS1 -b 57600 -m onboard -r 10000
+mavlink stream -d /dev/ttyS1 -s ATTITUDE   -r 10
+mavlink stream -d /dev/ttyS1 -s SCALED_IMU -r 10
+```
+- `-m onboard`：onboard 模式，啟用系統狀態、姿態、IMU 等標準訊息
+- `-r 10000`：最大傳輸速率 10000 B/s（受 SiK radio 物理頻寬限制）
+- `mavlink stream`：手動指定哪些訊息要送，以及頻率（Hz）
+- **`onboard` 模式不自動串流 ATTITUDE，需要明確加 `mavlink stream -s ATTITUDE`**
+
+### SCALED_IMU 訊息格式
+| 欄位 | 單位 | 換算 |
+|------|------|------|
+| `xacc / yacc / zacc` | mG（毫 g） | `/ 1000 × 9.81` → m/s² |
+| `xgyro / ygyro / zgyro` | mrad/s | `/ 1000` → rad/s |
+| `xmag / ymag / zmag` | mGauss | 無磁力計時全為 0 |
+
+---
+
+## 15. attitude_estimator_q 初始化機制與無磁力計處理
+
+### attitude_estimator_q 是什麼
+PX4 的四元數互補濾波估計器（`ATT_EN=1` 啟用）。
+與 EKF2 不同：**不需要 GPS**，只用 accel + gyro（磁力計可選）。
+輸出：`vehicle_attitude`（Roll / Pitch / Yaw 四元數）。
+
+### 初始化流程
+啟動後呼叫 `init_attitude_q()`：
+```
+k = normalize(-accel)          ← 重力方向（地球 Z 軸）
+i = normalize(mag - k*(mag·k)) ← 磁北方向（地球 X 軸）
+j = k × i                      ← 地球 Y 軸
+R = [i; j; k]                  ← 旋轉矩陣
+q = Quaternion(R)              ← 轉四元數
+若 q.length ∈ (0.95, 1.05) → _initialized = true → 開始發布
+```
+**若 `mag = (0,0,0)`（無磁力計），`i` 向量正規化後為 NaN，四元數長度不在範圍內，`_initialized` 永遠 `false`，`vehicle_attitude` 從不發布。**
+
+### PX4 的正式解法：SYS_HAS_MAG=0
+```sh
+param set SYS_HAS_MAG 0
+```
+`attitude_estimator_q::update_parameters()` 偵測到此旗標後：
+1. 強制 `ATT_W_MAG = 0.0`（關閉磁力計融合）
+2. 注入合成向量 `_mag = (1, 0, 0)`（北向假設）
+
+初始化因此通過，Yaw 從 0°（板子正面對北）開機，但無磁力計校正，**Yaw 會隨陀螺儀積分漂移**。Roll/Pitch 不受影響，由 accel + gyro 正常估計。
+
+### 板級參數設定（rc.board_sensors）
+```sh
+param set ATT_EN      1   # 啟用 attitude_estimator_q
+param set EKF2_EN     0   # 關閉 EKF2（需 GPS）
+param set SYS_HAS_MAG 0   # 無磁力計 → 繞過 mag fusion
+```
+這三行是 `rc.board_sensors` 的標準硬體宣告，開機時比 rcS 的估計器啟動判斷更早執行。
