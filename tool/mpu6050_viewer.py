@@ -224,28 +224,28 @@ class App(tk.Tk):
         f.pack(fill="x")
 
         tk.Label(f, text="Port:", bg=PANEL, fg=DIM,
-                 font=("Consolas", 9)).pack(side="left", padx=(0, 4))
+                 font=("Consolas", 11)).pack(side="left", padx=(0, 4))
 
         self._port_var = tk.StringVar()
         self._pcb = ttk.Combobox(f, textvariable=self._port_var,
-                                  width=46, state="readonly", font=("Consolas", 9))
+                                  width=46, state="readonly", font=("Consolas", 11))
         self._pcb.pack(side="left", padx=2)
 
         self._baud_var = tk.StringVar(value="115200")
         ttk.Combobox(f, textvariable=self._baud_var, width=9, state="readonly",
                      values=["9600","19200","38400","57600",
                              "115200","230400","921600"],
-                     font=("Consolas", 9)).pack(side="left", padx=2)
+                     font=("Consolas", 11)).pack(side="left", padx=2)
 
         tk.Button(f, text="⟳", width=3, bg=PANEL, fg=TEXT,
                   activebackground=BORDER, relief="flat", bd=0,
-                  font=("Consolas", 12), cursor="hand2",
+                  font=("Consolas", 14), cursor="hand2",
                   command=self._refresh_ports).pack(side="left", padx=2)
 
         self._cbtn = tk.Button(f, text="Connect", width=12,
                                bg="#003322", fg=GREEN,
                                activebackground="#005533", activeforeground=GREEN,
-                               relief="flat", bd=0, font=("Consolas", 10, "bold"),
+                               relief="flat", bd=0, font=("Consolas", 13, "bold"),
                                padx=8, pady=3, cursor="hand2",
                                command=self._toggle)
         self._cbtn.pack(side="left", padx=10)
@@ -256,7 +256,7 @@ class App(tk.Tk):
         self._dot.pack(side="left", padx=(0, 4))
 
         self._slbl = tk.Label(f, text="Disconnected", bg=PANEL, fg=RED,
-                              font=("Consolas", 9))
+                              font=("Consolas", 11))
         self._slbl.pack(side="left")
 
     def _build_main(self):
@@ -297,22 +297,22 @@ class App(tk.Tk):
                     tk.Frame(rp, bg=PANEL, height=4).pack()
                     continue
                 tk.Label(rp, text=lbl, bg=PANEL, fg=CYAN,
-                         font=("Consolas", 10, "bold")).pack(anchor="w", pady=(8, 1))
+                         font=("Consolas", 13, "bold")).pack(anchor="w", pady=(8, 1))
                 continue
             row = tk.Frame(rp, bg=PANEL)
             row.pack(fill="x", pady=1)
             tk.Label(row, text=f"  {lbl}:", bg=PANEL, fg=DIM,
-                     font=("Consolas", 9), width=7).pack(side="left")
+                     font=("Consolas", 11), width=7).pack(side="left")
             var = tk.StringVar(value="---")
             tk.Label(row, textvariable=var, bg=PANEL, fg=GOLD,
-                     font=("Consolas", 15, "bold"), width=10).pack(side="left")
+                     font=("Consolas", 19, "bold"), width=10).pack(side="left")
             if unit:
                 tk.Label(row, text=unit, bg=PANEL, fg=DIM,
-                         font=("Consolas", 9)).pack(side="left")
+                         font=("Consolas", 11)).pack(side="left")
             self._dvars[key] = var
 
         tk.Label(rp, text="* Yaw 需磁力計，MPU6050 不支援",
-                 bg=PANEL, fg=DIM, font=("Consolas", 8),
+                 bg=PANEL, fg=DIM, font=("Consolas", 14),
                  wraplength=180, justify="left").pack(anchor="w", pady=(6, 0))
 
     def _btn(self, parent, text, bg, fg, cmd, hover_bg=None, width=14):
@@ -322,7 +322,7 @@ class App(tk.Tk):
                          activebackground=hover_bg or bg,
                          activeforeground=fg,
                          relief="flat", bd=0,
-                         font=("Consolas", 10, "bold"),
+                         font=("Consolas", 13, "bold"),
                          width=width, padx=4, pady=7,
                          cursor="hand2",
                          command=cmd)
@@ -346,7 +346,7 @@ class App(tk.Tk):
         self._imu_dot = self._status_dot(hdr_imu, "#003300", "#006600")
         self._imu_dot.pack(side="left", padx=(0, 5))
         tk.Label(hdr_imu, text="IMU CONTROL", bg=PANEL, fg=CYAN,
-                 font=("Consolas", 9, "bold")).pack(side="left")
+                 font=("Consolas", 11, "bold")).pack(side="left")
 
         btns_imu = tk.Frame(imu, bg=PANEL)
         btns_imu.pack()
@@ -358,13 +358,13 @@ class App(tk.Tk):
         ivl = tk.Frame(imu, bg=PANEL)
         ivl.pack(anchor="w", pady=(5, 0))
         tk.Label(ivl, text="更新間隔", bg=PANEL, fg=DIM,
-                 font=("Consolas", 9)).pack(side="left")
+                 font=("Consolas", 11)).pack(side="left")
         tk.Entry(ivl, textvariable=self._interval_var, width=6,
-                 bg=LOG_BG, fg=GOLD, font=("Consolas", 9),
+                 bg=LOG_BG, fg=GOLD, font=("Consolas", 11),
                  relief="flat", insertbackground=GOLD,
                  justify="center").pack(side="left", padx=4)
         tk.Label(ivl, text="ms", bg=PANEL, fg=DIM,
-                 font=("Consolas", 9)).pack(side="left")
+                 font=("Consolas", 11)).pack(side="left")
 
         # 分隔線
         tk.Frame(f, bg=BORDER, width=2).pack(side="left", fill="y",
@@ -379,7 +379,7 @@ class App(tk.Tk):
         self._led_dot = self._status_dot(hdr_led, "#332200", "#886600")
         self._led_dot.pack(side="left", padx=(0, 5))
         tk.Label(hdr_led, text="LED CONTROL", bg=PANEL, fg=AMBER,
-                 font=("Consolas", 9, "bold")).pack(side="left")
+                 font=("Consolas", 11, "bold")).pack(side="left")
 
         btns_led = tk.Frame(led, bg=PANEL)
         btns_led.pack()
@@ -397,17 +397,17 @@ class App(tk.Tk):
         hdr = tk.Frame(f, bg=PANEL)
         hdr.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 2))
         tk.Label(hdr, text="Serial Log", bg=PANEL, fg=CYAN,
-                 font=("Consolas", 10, "bold")).pack(side="left")
+                 font=("Consolas", 13, "bold")).pack(side="left")
 
         for txt, cmd in (("Clear", self._clear_log), ("Copy", self._copy_log)):
             tk.Button(hdr, text=txt, bg=BORDER, fg=TEXT,
                       activebackground="#252548", relief="flat", bd=0,
-                      font=("Consolas", 9), padx=8, pady=2, cursor="hand2",
+                      font=("Consolas", 11), padx=8, pady=2, cursor="hand2",
                       command=cmd).pack(side="right", padx=2)
 
         # 文字區域
         self._log = tk.Text(f, height=7, bg=LOG_BG, fg=LOG_FG,
-                            font=("Consolas", 9), state="disabled",
+                            font=("Consolas", 11), state="disabled",
                             wrap="char", relief="flat", bd=0,
                             insertbackground=LOG_FG)
         self._log.grid(row=1, column=0, sticky="ew")
@@ -419,13 +419,13 @@ class App(tk.Tk):
         # 輸入列
         ir = tk.Frame(f, bg=LOG_BG)
         ir.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(2, 0))
-        self._inp = tk.Entry(ir, bg=LOG_BG, fg=LOG_FG, font=("Consolas", 9),
+        self._inp = tk.Entry(ir, bg=LOG_BG, fg=LOG_FG, font=("Consolas", 11),
                              relief="flat", insertbackground=LOG_FG)
         self._inp.pack(side="left", fill="x", expand=True, padx=4, pady=2)
         self._inp.bind("<Return>", self._send)
         tk.Button(ir, text="Send", bg=BORDER, fg=TEXT,
                   activebackground="#252548", relief="flat", bd=0,
-                  font=("Consolas", 9), padx=10, cursor="hand2",
+                  font=("Consolas", 11), padx=10, cursor="hand2",
                   command=self._send).pack(side="left")
 
     # ── 串列埠 ─────────────────────────────────────────────────────────────────

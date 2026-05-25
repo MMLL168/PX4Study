@@ -66,7 +66,7 @@ function Start-OpenOCD {
 
     # 只做 init，不做 reset halt（STM32H7 VECTRESET 會 timeout）
     # reset halt 由 GDB preLaunchCommands 的 monitor reset_config srst_only + monitor reset halt 處理
-    Start-Process -FilePath $ocd -ArgumentList "-s `"$scripts`" -f interface/stlink-dap.cfg -c `"set AP_NUM 0`" -c `"set CONNECT_UNDER_RESET 1`" -c `"set ENABLE_LOW_POWER 1`" -c `"set STOP_WATCHDOG 1`" -f target/stm32h7x.cfg -c `"init`"" -WindowStyle Minimized
+    Start-Process -FilePath $ocd -ArgumentList "-s `"$scripts`" -f interface/stlink-dap.cfg -c `"set AP_NUM 0`" -c `"set CONNECT_UNDER_RESET 1`" -c `"set ENABLE_LOW_POWER 1`" -c `"set STOP_WATCHDOG 1`" -f target/stm32h7x.cfg -c `"tcl_port disabled`" -c `"init`"" -WindowStyle Minimized
 }
 
 # TCP listener

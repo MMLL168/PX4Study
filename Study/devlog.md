@@ -7,6 +7,63 @@
 
 ---
 
+## [2026-05-25 11:00] OpenOCD tcl_port 6666 無法綁定導致退出修復
+
+**問題**：F5 觸發 Relay 後 wait_openocd.sh 20 秒 timeout，OpenOCD 未在 port 3333 就緒。
+手動執行 OpenOCD 可見 `Listening on port 3333` 後立即出現
+`Error: couldn't bind tcl to socket on port 6666: No error`，OpenOCD 退出。
+
+**原因**：OpenOCD 預設嘗試綁定 TCL port 6666 作為腳本控制介面；
+port 6666 被 Windows 某個程式佔用或拒絕，導致 OpenOCD 印出錯誤後自動退出，
+port 3333 隨之關閉，wait_openocd.sh 偵測不到。
+
+**處理方式**：
+`boards/st/nucleo-h743/relay_server.ps1` 的 OpenOCD 啟動參數中加入
+`-c "tcl_port disabled"`，關閉不需要的 TCL 介面。
+同步更新 `C:\PX4\relay_server.ps1`（Windows 端 Relay 備份）。
+
+---
+
+## [2026-05-25 11:30] 新電腦 Debug 環境建立記錄
+
+**問題**：換新電腦後需重新建立容器內 GDB 除錯環境。
+
+**處理方式**（每台新電腦需手動執行一次）：
+1. 容器內建立 `.so.5` symlink：
+   ```bash
+   mkdir -p ~/.local/lib ~/.local/bin
+   ln -sf /lib/x86_64-linux-gnu/libncurses.so.6 ~/.local/lib/libncurses.so.5
+   ln -sf /lib/x86_64-linux-gnu/libtinfo.so.6   ~/.local/lib/libtinfo.so.5
+   ```
+2. 建立 GDB wrapper（版本偽裝 8.3.1→9.3.1，threading pump，訊號轉發）
+   → `~/.local/bin/arm-none-eabi-gdb-wrapper.sh`
+3. 建立 nm / objdump wrapper（同目錄）
+4. 建立 python symlink：`ln -sf /usr/bin/python3 ~/.local/bin/python`
+5. Windows 端：安裝 Relay（`C:\PX4\relay_server.ps1 -Install`）、
+   開放防火牆 port 3333
+6. VS Code：安裝 Cortex-Debug 1.6.10
+
+詳細步驟見 `Study/new_pc_setup.md`。
+
+---
+
+## [2026-05-25 12:00] GUI 字體放大
+
+**問題**：mpu6050_viewer.py 所有文字偏小，高解析度螢幕不易閱讀。
+
+**原因**：原始字體設定以 size 8～15 為主，缺乏可讀性。
+
+**處理方式**（`tool/mpu6050_viewer.py`）：
+全域字體縮放，各級字體對應關係：
+- 8 → 14（Yaw 說明）
+- 9 → 11（一般文字、標籤、輸入框）
+- 9 bold → 11 bold（區塊標題 IMU/LED CONTROL）
+- 10 bold → 13 bold（ATTITUDE/ACCEL/GYRO 標題、按鈕）
+- 12 → 14（重新整理按鈕）
+- 15 bold → 19 bold（Roll/Pitch 數值）
+
+---
+
 ## [2026-05-24 04:00] 確認 NSH debug 工具不影響 PX4 正常運作
 
 **問題**：使用 NSH + mpu6050 start/stop + listener 的 debug 流程，
